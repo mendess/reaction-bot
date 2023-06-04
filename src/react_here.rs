@@ -18,7 +18,7 @@ use serenity::{
 pub const CMD_NAME: &str = "react-here";
 
 static GUILDS: GlobalDatabase<HashMap<GuildId, ChannelId>> =
-    json_db::Database::const_new("guilds.json");
+    json_db::Database::const_new("files/guilds.json");
 
 pub async fn react_to(msg: &Message, ctx: &Context) -> anyhow::Result<()> {
     async fn should_react(msg: &Message) -> anyhow::Result<bool> {

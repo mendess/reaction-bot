@@ -82,7 +82,7 @@ async fn register_integration_commands() {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let config: Config = config::Config::builder()
-        .add_source(config::File::with_name("./config"))
+        .add_source(config::File::with_name("./files/config"))
         .build()?
         .try_deserialize()?;
 
