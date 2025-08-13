@@ -3,13 +3,10 @@ use std::{collections::HashMap, sync::OnceLock};
 use anyhow::anyhow;
 use json_db::GlobalDatabase;
 use serenity::{
-    builder::CreateApplicationCommand,
+    all::{CommandDataOption, CommandOptionType, CreateCommand, CreateCommandOption},
     model::{
         id::{ChannelId, GuildId},
-        prelude::{
-            command::CommandOptionType, interaction::application_command::CommandDataOption,
-            EmojiId, Message, ReactionType,
-        },
+        prelude::{EmojiId, Message, ReactionType},
         Permissions,
     },
     prelude::Context,
@@ -18,13 +15,13 @@ use serenity::{
 pub const CMD_NAME: &str = "react-here";
 
 static GUILDS: GlobalDatabase<HashMap<GuildId, ChannelId>> =
-    json_db::Database::const_new("files/guilds.json");
+    json_db::GlobalDatabase::new("files/guilds.json");
 
 pub async fn react_to(msg: &Message, ctx: &Context) -> anyhow::Result<()> {
     async fn should_react(msg: &Message) -> anyhow::Result<bool> {
         let Some(gid) = msg.guild_id else {
-                return Ok(false)
-            };
+            return Ok(false);
+        };
         Ok(GUILDS
             .load()
             .await?
@@ -43,7 +40,7 @@ pub async fn react_to(msg: &Message, ctx: &Context) -> anyhow::Result<()> {
                 ReactionType::Unicode("👎".into()),
                 ReactionType::Custom {
                     animated: false,
-                    id: EmojiId(1114991930099642389),
+                    id: EmojiId::new(1114991930099642389),
                     name: Some("dust".into()),
                 },
             ]
@@ -62,8 +59,6 @@ pub async fn react_to(msg: &Message, ctx: &Context) -> anyhow::Result<()> {
 pub async fn run(options: &[CommandDataOption], guild_id: GuildId) -> anyhow::Result<()> {
     let channel_id: ChannelId = options[0]
         .value
-        .as_ref()
-        .ok_or_else(|| anyhow!("argument not provided"))?
         .as_str()
         .and_then(|s| s.parse::<u64>().ok())
         .ok_or_else(|| anyhow!("argument was not a channelId"))?
@@ -79,17 +74,18 @@ pub async fn run(options: &[CommandDataOption], guild_id: GuildId) -> anyhow::Re
     Ok(())
 }
 
-pub fn register(command: &mut CreateApplicationCommand) -> &mut CreateApplicationCommand {
-    command
+pub fn register() -> CreateCommand {
+    CreateCommand::new(CMD_NAME)
         .name(CMD_NAME)
         .description("set the channel the bot will react to")
         .dm_permission(false)
         .default_member_permissions(Permissions::MANAGE_GUILD)
-        .create_option(|option| {
-            option
-                .name("channel")
-                .description("the channel the bot will react to")
-                .kind(CommandOptionType::Channel)
-                .required(true)
-        })
+        .add_option(
+            CreateCommandOption::new(
+                CommandOptionType::Channel,
+                "channel",
+                "the channel the bot will react to",
+            )
+            .required(true),
+        )
 }

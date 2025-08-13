@@ -4,10 +4,7 @@ use futures::FutureExt;
 use pubsub::ControlFlow;
 use serde::{Deserialize, Serialize};
 use serenity::{
-    model::application::{
-        command::Command,
-        interaction::{Interaction, InteractionResponseType},
-    },
+    all::{Command, CreateInteractionResponse, CreateInteractionResponseMessage, Interaction},
     prelude::GatewayIntents,
     Client,
 };
@@ -22,7 +19,7 @@ async fn register_integration_commands() {
 
     pubsub::subscribe::<InteractionCreate, _>(|ctx, interaction| {
         async move {
-            if let Interaction::ApplicationCommand(command) = interaction {
+            if let Interaction::Command(command) = interaction {
                 let react_here::CMD_NAME = command.data.name.as_str() else {
                     return ControlFlow::CONTINUE;
                 };
@@ -31,15 +28,15 @@ async fn register_integration_commands() {
                     None => Err(anyhow::anyhow!("this command can only be run in a server")),
                 };
                 if let Err(why) = command
-                    .create_interaction_response(ctx, |resp| {
-                        resp.kind(InteractionResponseType::ChannelMessageWithSource)
-                            .interaction_response_data(|msg| {
-                                msg.content(match result {
-                                    Ok(_) => "done".into(),
-                                    Err(e) => e.to_string(),
-                                })
-                            })
-                    })
+                    .create_response(
+                        ctx,
+                        match result {
+                            Ok(_) => CreateInteractionResponse::Acknowledge,
+                            Err(e) => CreateInteractionResponse::Message(
+                                CreateInteractionResponseMessage::new().content(e.to_string()),
+                            ),
+                        },
+                    )
                     .await
                 {
                     println!("failed to respond to slash command: {why}");
@@ -53,9 +50,7 @@ async fn register_integration_commands() {
 
     pubsub::subscribe::<Ready, _>(|ctx, _ready| {
         async move {
-            if let Err(why) =
-                Command::create_global_application_command(ctx, react_here::register).await
-            {
+            if let Err(why) = Command::create_global_command(ctx, react_here::register()).await {
                 eprintln!(
                     "failed to register {} command: {why:?}",
                     react_here::CMD_NAME
